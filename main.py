@@ -27,13 +27,13 @@ def load_train_data(path):
 def load_test_data(path):
     print('===LOAD TEST DATA===')
     image_names = os.listdir(os.path.join(path, 'test'))
-    test_images_list = [imread(os.path.join(path, 'train', img)) for img in image_names]
+    test_images_list = [imread(os.path.join(path, 'test', img)) for img in image_names]
     return image_names, np.array(test_images_list)
 
 def make_predict(model):
-    print('===PREDICT===')
     image_names, test_images_array = load_test_data(path)
     test_images_array = test_images_array / 255.
+    print('===PREDICT===')
     predict_mask = model.predict(test_images_array, batch_size=1, verbose=1)
     return test_images_array, predict_mask, image_names
 
@@ -44,6 +44,7 @@ def create_submission(image_names, predicted_mask, threshold=0.5):
     rle_mask = [rle_encoding(x) for x in predicted_mask]
     sub = pd.DataFrame()
     sub['image'] = image_names
+    sub['image'] = sub['image'].map(lambda x: x.split('.')[0])
     sub['rle_mask'] = rle_mask
     sub.to_csv('submission/submission.csv', index=False)
 
@@ -67,7 +68,7 @@ def create_train_image_generator(X_train, y_train):
     return train_generator
 
 def create_callbaks():
-    checkpoint = ModelCheckpoint('weights/unet++.h5', monitor='val_dice_coef', mode='max', save_best_only=True, verbose=1)
+    checkpoint = ModelCheckpoint('weights/unet++.h5', monitor='val_hard_dice_coef', mode='max', save_best_only=True, verbose=1)
     return [checkpoint]
 
 if __name__ == '__main__':
@@ -80,7 +81,7 @@ if __name__ == '__main__':
     model = Nest_Net(320, 240, 3)
     model.compile(optimizer=Adam(1e-4, decay=1e-6), loss=dice_coef_loss_bce, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
     callbacks = create_callbaks()
-    
+
     print('===FIT MODEL===')
     model.fit_generator(train_generator,
                         steps_per_epoch = X_train.shape[0]/BATCH,
