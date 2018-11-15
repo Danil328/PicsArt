@@ -11,7 +11,7 @@ from keras.optimizers import Adam
 from keras.utils import Sequence
 
 path = 'PicsArt/data/'
-BATCH = 32
+BATCH = 16
 
 def load_train_data(path):
     print('===LOAD DATA===')
