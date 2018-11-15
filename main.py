@@ -10,7 +10,7 @@ from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
 from keras.utils import Sequence
 
-path = './data/'
+path = 'PicsArt/data/'
 BATCH = 32
 
 def load_train_data(path):
