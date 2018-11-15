@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     model.fit_generator(train_generator,
                         steps_per_epoch = X_train.shape[0]/BATCH,
-                        epochs=1,
+                        epochs=20,
                         callbacks=callbaacks,
                         validation_data=(X_val, y_val))
 
