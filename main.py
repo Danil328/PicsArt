@@ -40,7 +40,7 @@ def create_train_image_generator(X_train, y_train):
     return train_generator
 
 def create_callbaks():
-    checkpoint = ModelCheckpoint('weights/unet++.h5', monitor='val_dice_coef', mode='max', save_best_only=True)
+    checkpoint = ModelCheckpoint('PicsArt/weights/unet++.h5', monitor='val_dice_coef', mode='max', save_best_only=True)
     return [checkpoint]
 
 if __name__ == '__main__':
