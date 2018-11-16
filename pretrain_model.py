@@ -1,5 +1,6 @@
 import numpy as np
 from skimage.io import imread, imshow
+from skimage.transform import resize
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
@@ -13,22 +14,25 @@ from keras.optimizers import Adam
 from keras.models import load_model
 from keras.utils import Sequence
 
+# https://drive.google.com/file/d/0B0d9ZiqAgFkiOHR1NTJhWVJMNEU/view
 # path = 'PicsArt/data/'
-path = '/media/danil/Data/Datasets/PicsArt/data/'
+path = 'data/dataset1'
 BATCH = 12
+target_shape = (320,240)
 
 def load_train_data(path):
     print('===LOAD DATA===')
-    train_images = os.listdir(os.path.join(path, 'train'))
-    train_images_list = [imread(os.path.join(path, 'train', img)) for img in train_images]
-    train_mask_list = [imread(os.path.join(path, 'train_mask', img.split('.')[0]+'.png')) for img in train_images]
+    train_images = os.listdir(os.path.join(path, 'images_prepped_train'))
+    train_images_list = [resize(imread(os.path.join(path, 'images_prepped_train', img)), target_shape) for img in train_images]
+    train_mask_list = [resize(imread(os.path.join(path, 'annotations_prepped_train', img)), target_shape) for img in train_images]
     return np.array(train_images_list), np.expand_dims(np.array(train_mask_list),-1)
 
 def load_test_data(path):
     print('===LOAD TEST DATA===')
-    image_names = os.listdir(os.path.join(path, 'test'))
-    test_images_list = [imread(os.path.join(path, 'test', img)) for img in image_names]
-    return image_names, np.array(test_images_list)
+    image_names = os.listdir(os.path.join(path, 'images_prepped_test'))
+    test_images_list = [resize(imread(os.path.join(path, 'images_prepped_test', img)),target_shape) for img in image_names]
+    test_mask_list = [resize(imread(os.path.join(path, 'annotations_prepped_test', img)), target_shape) for img in image_names]
+    return np.array(test_images_list), np.expand_dims(np.array(test_mask_list),-1)
 
 def make_predict(model):
     image_names, test_images_array = load_test_data(path)
@@ -37,21 +41,9 @@ def make_predict(model):
     predict_mask = model.predict(test_images_array, batch_size=1, verbose=1)
     return test_images_array, predict_mask, image_names
 
-def create_submission(image_names, predicted_mask, threshold=0.5):
-    print('===CREATE SUBMISSION===')
-    predicted_mask[predicted_mask > threshold] = 1
-    predicted_mask[predicted_mask <= threshold] = 0
-    rle_mask = [rle_encoding(x) for x in predicted_mask]
-    sub = pd.DataFrame()
-    sub['image'] = image_names
-    sub['image'] = sub['image'].map(lambda x: x.split('.')[0])
-    sub['rle_mask'] = rle_mask
-    sub.to_csv('submission/submission.csv', index=False)
-
 def create_train_image_generator(X_train, y_train):
     data_gen_args = dict(featurewise_center=False,
                          featurewise_std_normalization=False,
-                         rescale=1. / 255,
                          rotation_range=10,
                          width_shift_range=0.15,
                          height_shift_range=0.15,
@@ -73,22 +65,25 @@ def create_callbaks(model_name='unet++.h5'):
 
 if __name__ == '__main__':
     train_images, train_mask = load_train_data(path)
-    X_train, X_val, y_train, y_val = train_test_split(train_images, train_mask, test_size = 0.15, random_state = 17)
-    X_val = X_val / 255.
-    y_val = y_val / 255.
+    train_mask = (train_mask==8./255).astype(float)
 
-    train_generator = create_train_image_generator(X_train, y_train)
+    test_images, test_mask = load_test_data(path)
+    test_mask = (test_mask==8./255).astype(float)
+
+    train_generator = create_train_image_generator(train_images, train_mask)
+
     model = Nest_Net(320, 240, 3)
     model.compile(optimizer=Adam(1e-4, decay=1e-6), loss=dice_coef_loss_bce, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
-    callbacks = create_callbaks()
+    callbacks = create_callbaks(model_name='unet_with_car_data.h5')
 
     print('===FIT MODEL===')
-    model.fit_generator(train_generator,
-                        steps_per_epoch = X_train.shape[0]/BATCH,
-                        epochs=20,
-                        verbose=1,
-                        callbacks=callbacks,
-                        validation_data=(X_val, y_val))
+    # model.fit_generator(train_generator,
+    #                     steps_per_epoch = train_images.shape[0]/BATCH,
+    #                     epochs=20,
+    #                     verbose=1,
+    #                     callbacks=callbacks,
+    #                     validation_data=(test_images, test_mask))
+
 
     # x,y = next(train_generator)
     # plt.figure()
@@ -97,14 +92,11 @@ if __name__ == '__main__':
     # plt.figure()
     # imshow(y[0,...,0])
     # plt.show()
-
-    model = load_model('weights/unet++.h5', compile = False)
-    test_image_array, predicted_mask, test_image_names = make_predict(model)
-    create_submission(test_image_names, predicted_mask)
-
+    #
     # plt.figure()
-    # imshow(test_image_array[0])
+    # imshow(train_images[100])
     # plt.show()
     # plt.figure()
-    # imshow(predicted_mask[0,...,0])
+    # imshow(train_mask[100,...,0])
     # plt.show()
+
