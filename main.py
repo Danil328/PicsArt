@@ -39,8 +39,8 @@ def make_predict(model):
 
 def create_submission(image_names, predicted_mask, threshold=0.5):
     print('===CREATE SUBMISSION===')
-    predicted_mask[predicted_mask > threshold] = 1
-    predicted_mask[predicted_mask <= threshold] = 0
+    predicted_mask[predicted_mask >= threshold] = 1
+    predicted_mask[predicted_mask < threshold] = 0
     rle_mask = [rle_encoding(x) for x in predicted_mask]
     sub = pd.DataFrame()
     sub['image'] = image_names
@@ -68,7 +68,7 @@ def create_train_image_generator(X_train, y_train):
     return train_generator
 
 def create_callbaks(model_name='unet++.h5'):
-    checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_hard_dice_coef', mode='max', save_best_only=True, verbose=1)
+    checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_dice_coef', mode='max', save_best_only=True, verbose=1)
     return [checkpoint]
 
 if __name__ == '__main__':
@@ -78,17 +78,21 @@ if __name__ == '__main__':
     y_val = y_val / 255.
 
     train_generator = create_train_image_generator(X_train, y_train)
-    model = Nest_Net(320, 240, 3)
-    model.compile(optimizer=Adam(1e-4, decay=1e-6), loss=dice_coef_loss_bce, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
     callbacks = create_callbaks()
+    #model = Nest_Net(320, 240, 3)
+    model = load_model('weights/unet_with_car_data2.h5', compile=False)
+    #model = load_model('weights/unet++2.h5', compile=False)
+    model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=dice_coef_loss_bce, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
+
 
     print('===FIT MODEL===')
     model.fit_generator(train_generator,
                         steps_per_epoch = X_train.shape[0]/BATCH,
                         epochs=20,
-                        verbose=1,
+                        verbose=2,
                         callbacks=callbacks,
-                        validation_data=(X_val, y_val))
+                        validation_data=(X_val, y_val),
+                        initial_epoch=0)
 
     # x,y = next(train_generator)
     # plt.figure()
@@ -98,9 +102,9 @@ if __name__ == '__main__':
     # imshow(y[0,...,0])
     # plt.show()
 
-    model = load_model('weights/unet++.h5', compile = False)
+    model = load_model('weights/unet++2.h5', compile = False)
     test_image_array, predicted_mask, test_image_names = make_predict(model)
-    create_submission(test_image_names, predicted_mask)
+    create_submission(test_image_names, predicted_mask, threshold=0.5)
 
     # plt.figure()
     # imshow(test_image_array[0])

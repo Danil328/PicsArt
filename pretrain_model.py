@@ -17,6 +17,7 @@ from keras.utils import Sequence
 # https://drive.google.com/file/d/0B0d9ZiqAgFkiOHR1NTJhWVJMNEU/view
 # path = 'PicsArt/data/'
 path = 'data/dataset1'
+path = '/media/danil/Data/Datasets/PicsArt/dataset1'
 BATCH = 12
 target_shape = (320,240)
 
@@ -60,29 +61,30 @@ def create_train_image_generator(X_train, y_train):
     return train_generator
 
 def create_callbaks(model_name='unet++.h5'):
-    checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_hard_dice_coef', mode='max', save_best_only=True, verbose=1)
+    checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_loss', mode='min', save_best_only=True, verbose=1)
     return [checkpoint]
 
 if __name__ == '__main__':
     train_images, train_mask = load_train_data(path)
-    train_mask = (train_mask==8./255).astype(float)
+    train_mask = (train_mask == 8./255).astype(float)
 
     test_images, test_mask = load_test_data(path)
-    test_mask = (test_mask==8./255).astype(float)
+    test_mask = (test_mask == 8./255).astype(float)
 
     train_generator = create_train_image_generator(train_images, train_mask)
 
     model = Nest_Net(320, 240, 3)
-    model.compile(optimizer=Adam(1e-4, decay=1e-6), loss=dice_coef_loss_bce, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
+    #model = load_model('weights/unet_with_car_data.h5', compile=False)
+    model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=dice_coef_loss_bce, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
     callbacks = create_callbaks(model_name='unet_with_car_data.h5')
 
     print('===FIT MODEL===')
-    # model.fit_generator(train_generator,
-    #                     steps_per_epoch = train_images.shape[0]/BATCH,
-    #                     epochs=20,
-    #                     verbose=1,
-    #                     callbacks=callbacks,
-    #                     validation_data=(test_images, test_mask))
+    model.fit_generator(train_generator,
+                        steps_per_epoch = train_images.shape[0]/BATCH,
+                        epochs=20,
+                        verbose=2,
+                        callbacks=callbacks,
+                        validation_data=(test_images, test_mask))
 
 
     # x,y = next(train_generator)
