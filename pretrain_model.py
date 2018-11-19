@@ -13,11 +13,12 @@ from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
 from keras.models import load_model
 from keras.utils import Sequence
+from main import create_train_image_generator
 
 # https://drive.google.com/file/d/0B0d9ZiqAgFkiOHR1NTJhWVJMNEU/view
 # path = 'PicsArt/data/'
 path = 'data/dataset1'
-path = '/media/danil/Data/Datasets/PicsArt/dataset1'
+# path = '/media/danil/Data/Datasets/PicsArt/dataset1'
 BATCH = 12
 target_shape = (320,240)
 
@@ -42,24 +43,6 @@ def make_predict(model):
     predict_mask = model.predict(test_images_array, batch_size=1, verbose=1)
     return test_images_array, predict_mask, image_names
 
-def create_train_image_generator(X_train, y_train):
-    data_gen_args = dict(featurewise_center=False,
-                         featurewise_std_normalization=False,
-                         rotation_range=10,
-                         width_shift_range=0.15,
-                         height_shift_range=0.15,
-                         zoom_range=0.2,
-                         horizontal_flip=True)
-    image_datagen = ImageDataGenerator(**data_gen_args)
-    mask_datagen = ImageDataGenerator(**data_gen_args)
-
-    seed = 1
-
-    image_generator = image_datagen.flow(X_train , seed=seed, batch_size=BATCH)
-    mask_generator = mask_datagen.flow(y_train, seed=seed, batch_size=BATCH)
-    train_generator = zip(image_generator, mask_generator)
-    return train_generator
-
 def create_callbaks(model_name='unet++.h5'):
     checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_loss', mode='min', save_best_only=True, verbose=1)
     return [checkpoint]
@@ -71,7 +54,7 @@ if __name__ == '__main__':
     test_images, test_mask = load_test_data(path)
     test_mask = (test_mask == 8./255).astype(float)
 
-    train_generator = create_train_image_generator(train_images, train_mask)
+    train_generator = create_train_image_generator((train_images*255).astype(np.uint8), (train_mask*255).astype(np.uint8), rescale=True)
 
     model = Nest_Net(320, 240, 3)
     #model = load_model('weights/unet_with_car_data.h5', compile=False)
@@ -87,14 +70,14 @@ if __name__ == '__main__':
                         validation_data=(test_images, test_mask))
 
 
-    # x,y = next(train_generator)
-    # plt.figure()
-    # imshow(x[0])
-    # plt.show()
-    # plt.figure()
-    # imshow(y[0,...,0])
-    # plt.show()
-    #
+    x,y = next(train_generator)
+    plt.figure()
+    imshow(x[0])
+    plt.show(block=False)
+    plt.figure()
+    imshow(y[0,...,0])
+    plt.show(block=False)
+
     # plt.figure()
     # imshow(train_images[100])
     # plt.show()

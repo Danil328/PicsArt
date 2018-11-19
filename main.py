@@ -7,14 +7,30 @@ from keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
 from model import Nest_Net
 from losses import  dice_coef_loss_bce, dice_coef, hard_dice_coef, binary_crossentropy
-from my_tools import rle_encoding, rle_decode, rle_encode
+from my_tools import rle_encoding, rle_decode, rle_encode, visualize
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
 from keras.models import load_model
 from keras.utils import Sequence
+import cv2
+from albumentations import (
+    HorizontalFlip,
+    VerticalFlip,
+    Compose,
+    Blur,
+    ElasticTransform,
+    GridDistortion,
+    ShiftScaleRotate,
+    OneOf,
+    CLAHE,
+    RandomContrast,
+    RandomGamma,
+    RandomBrightness,
+    JpegCompression
+)
 
-# path = 'PicsArt/data/'
-path = '/media/danil/Data/Datasets/PicsArt/data/'
+path = 'data/'
+#path = '/media/danil/Data/Datasets/PicsArt/data/'
 BATCH = 12
 
 def load_train_data(path):
@@ -48,42 +64,49 @@ def create_submission(image_names, predicted_mask, threshold=0.5):
     sub['rle_mask'] = rle_mask
     sub.to_csv('submission/submission.csv', index=False)
 
-def create_train_image_generator(X_train, y_train):
-    data_gen_args = dict(featurewise_center=False,
-                         featurewise_std_normalization=False,
-                         rescale=1. / 255,
-                         rotation_range=10,
-                         width_shift_range=0.15,
-                         height_shift_range=0.15,
-                         zoom_range=0.2,
-                         horizontal_flip=True)
-    image_datagen = ImageDataGenerator(**data_gen_args)
-    mask_datagen = ImageDataGenerator(**data_gen_args)
+def create_train_image_generator(X_train, y_train, rescale=True):
+    aug = Compose([
+        VerticalFlip(p=0.25),
+        HorizontalFlip(p=0.25),
+        OneOf([
+            ElasticTransform(p=0.5, alpha=1, sigma=50, alpha_affine=50),
+            GridDistortion(p=0.5),
+            ShiftScaleRotate(p=0.5),
+        ], p=0.5),
+        CLAHE(p=0.5),
+        RandomContrast(p=0.5),
+        RandomBrightness(p=0.5),
+        RandomGamma(p=0.5),
+        JpegCompression(p=0.5),
+        Blur(p=0.5)
+        ])
 
-    seed = 1
+    while True:
+        image_rgb = []
+        image_mask = []
+        for i in range(X_train.shape[0]):
+            augmented = aug(image=X_train[i], mask=y_train[i, ..., 0])
+            image_rgb += [augmented['image']]
+            image_mask += [augmented['mask']]
+            if len(image_rgb) == BATCH:
+                if rescale:
+                    yield np.stack(image_rgb,0)/255., np.expand_dims(np.stack(image_mask, 0),-1)/255.
+                else:
+                    yield np.stack(image_rgb, 0), np.expand_dims(np.stack(image_mask, 0), -1)
+                image_rgb, image_mask = [], []
 
-    image_generator = image_datagen.flow(X_train , seed=seed, batch_size=BATCH)
-    mask_generator = mask_datagen.flow(y_train, seed=seed, batch_size=BATCH)
-    train_generator = zip(image_generator, mask_generator)
     return train_generator
 
 def create_callbaks(model_name='unet++.h5'):
     checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_dice_coef', mode='max', save_best_only=True, verbose=1)
     return [checkpoint]
 
-if __name__ == '__main__':
-    train_images, train_mask = load_train_data(path)
-    X_train, X_val, y_train, y_val = train_test_split(train_images, train_mask, test_size = 0.15, random_state = 17)
-    X_val = X_val / 255.
-    y_val = y_val / 255.
-
-    train_generator = create_train_image_generator(X_train, y_train)
+def train_model(train_generator):
     callbacks = create_callbaks()
-    #model = Nest_Net(320, 240, 3)
-    model = load_model('weights/unet_with_car_data2.h5', compile=False)
+    model = Nest_Net(320, 240, 3)
+    #model = load_model('weights/unet_with_car_data2.h5', compile=False)
     #model = load_model('weights/unet++2.h5', compile=False)
     model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=dice_coef_loss_bce, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
-
 
     print('===FIT MODEL===')
     model.fit_generator(train_generator,
@@ -93,18 +116,27 @@ if __name__ == '__main__':
                         callbacks=callbacks,
                         validation_data=(X_val, y_val),
                         initial_epoch=0)
+    return model
 
-    # x,y = next(train_generator)
-    # plt.figure()
-    # imshow(x[0])
-    # plt.show()
-    # plt.figure()
-    # imshow(y[0,...,0])
-    # plt.show()
+if __name__ == '__main__':
+    train_images, train_mask = load_train_data(path)
+    X_train, X_val, y_train, y_val = train_test_split(train_images, train_mask, test_size = 0.15, random_state = 17)
+    X_val = X_val / 255.
+    y_val = y_val / 255.
 
-    model = load_model('weights/unet++2.h5', compile = False)
-    test_image_array, predicted_mask, test_image_names = make_predict(model)
-    create_submission(test_image_names, predicted_mask, threshold=0.5)
+    train_generator = create_train_image_generator(X_train, y_train)
+    x,y = next(train_generator)
+    plt.figure()
+    imshow(x[0])
+    plt.show(block=False)
+    plt.figure()
+    imshow(y[0,...,0])
+    plt.show(block=False)
+
+    # model = train_model(train_generator)
+    # model = load_model('weights/unet++.h5', compile = False)
+    # test_image_array, predicted_mask, test_image_names = make_predict(model)
+    # create_submission(test_image_names, predicted_mask, threshold=0.5)
 
     # plt.figure()
     # imshow(test_image_array[0])
