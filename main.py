@@ -32,7 +32,7 @@ from albumentations import (
 path = 'data/'
 path = '/media/danil/Data/Datasets/PicsArt/data/'
 BATCH = 8
-supervision = True
+supervision = False
 
 def load_train_data(path):
     print('===LOAD DATA===')
@@ -126,13 +126,17 @@ def train_model(train_generator):
                                   'output_2': y_val,
                                   'output_3': y_val,
                                   'output_4': y_val})
+        path_to_pretrained_model = 'weights/unet_with_car_data_supervision.h5'
+        callback_name = 'unet++supervision.h5'
     else:
         loss = dice_coef_loss_bce
         val_data = (X_val, y_val)
+        path_to_pretrained_model = 'weights/unet_with_car_data.h5'
+        callback_name = 'unet++.h5'
 
-    callbacks = create_callbaks()
+    callbacks = create_callbaks(callback_name)
     # model = Nest_Net(320, 240, 3)
-    model = load_model('weights/unet_with_car_data_supervision.h5', compile=False)
+    model = load_model(path_to_pretrained_model, compile=False)
     #model = load_model('weights/unet++.h5', compile=False)
     model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
@@ -145,7 +149,7 @@ def train_model(train_generator):
                         validation_data=val_data,
                         initial_epoch=0)
 
-    model = load_model('weights/unet++supervision.h5', compile=False)
+    model = load_model(callback_name, compile=False)
     model.compile(optimizer=Adam(1e-4, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     model.fit_generator(train_generator,
@@ -156,7 +160,7 @@ def train_model(train_generator):
                         validation_data=val_data,
                         initial_epoch=20)
 
-    model = load_model('weights/unet++supervision.h5', compile=False)
+    model = load_model(callback_name, compile=False)
     model.compile(optimizer=Adam(1e-4, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     if supervision:
@@ -185,7 +189,7 @@ if __name__ == '__main__':
     # plt.show(block=False)
 
     model = train_model(train_generator)
-    model = load_model('weights/unet++supervision.h5', compile = False)
+    model = load_model('weights/unet++.h5', compile = False)
     test_image_array, predicted_mask, test_image_names = make_predict(model)
     create_submission(test_image_names, predicted_mask, threshold=0.5)
 
