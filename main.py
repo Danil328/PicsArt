@@ -3,7 +3,6 @@ from skimage.io import imread, imshow
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-from keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
 from model import Nest_Net
 from losses import  dice_coef_loss_bce, dice_coef, hard_dice_coef, binary_crossentropy
@@ -11,8 +10,7 @@ from my_tools import rle_encoding, rle_decode, rle_encode, visualize
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
 from keras.models import load_model
-from keras.utils import Sequence
-import cv2
+from my_tools import dice
 from albumentations import (
     HorizontalFlip,
     VerticalFlip,
@@ -56,6 +54,13 @@ def make_predict(model):
     else:
         predict_mask = model.predict(test_images_array, batch_size=1)
     return test_images_array, predict_mask, image_names
+
+def evaluate(model, X_val, y_val, threshold=0.5):
+    pred = model.predict(X_val)
+    pred[pred >= threshold] = 1
+    pred[pred < threshold] = 0
+    dice_list = [dice(y_val[i], pred[i]) for i in range(X_val.shape[0])]
+    print("Evaluate Dice coefficient: {}".format(np.mean(dice_list)))
 
 def create_submission(image_names, predicted_mask, threshold=0.5):
     print('===CREATE SUBMISSION===')
@@ -111,7 +116,7 @@ def create_train_image_generator(X_train, y_train, batch = BATCH, supervision=Fa
 
     return train_generator
 
-def create_callbaks(model_name='unet++supervision.h5'):
+def create_callbaks(model_name='unet++.h5'):
     checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_dice_coef', mode='max', save_best_only=True, verbose=1)
     return [checkpoint]
 
@@ -137,7 +142,6 @@ def train_model(train_generator):
     callbacks = create_callbaks(callback_name)
     # model = Nest_Net(320, 240, 3)
     model = load_model(path_to_pretrained_model, compile=False)
-    #model = load_model('weights/unet++.h5', compile=False)
     model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     print('===FIT MODEL===')
@@ -165,10 +169,10 @@ def train_model(train_generator):
 
     if supervision:
         model.fit(X_train / 255., {'output_1': y_train / 255., 'output_2': y_train / 255., 'output_3': y_train / 255., 'output_4': y_train / 255.},
-                  batch_size=12, epochs=30, verbose=2, callbacks=callbacks,
+                  batch_size=BATCH, epochs=30, verbose=2, callbacks=callbacks,
                   validation_data=val_data, initial_epoch=25)
     else:
-        model.fit(X_train/255., y_train/255., batch_size=12, epochs=30, verbose=2, callbacks=callbacks,
+        model.fit(X_train/255., y_train/255., batch_size=BATCH, epochs=30, verbose=2, callbacks=callbacks,
                   validation_data=val_data, initial_epoch=25)
 
     return model
@@ -188,10 +192,13 @@ if __name__ == '__main__':
     # imshow(y[0,...,0])
     # plt.show(block=False)
 
-    model = train_model(train_generator)
+    #model = train_model(train_generator)
     model = load_model('weights/unet++.h5', compile = False)
-    test_image_array, predicted_mask, test_image_names = make_predict(model)
-    create_submission(test_image_names, predicted_mask, threshold=0.5)
+
+    evaluate(model, X_val, y_val, 0.5)
+
+    #test_image_array, predicted_mask, test_image_names = make_predict(model)
+    #create_submission(test_image_names, predicted_mask, threshold=0.5)
 
     # plt.figure()
     # imshow(test_image_array[0])

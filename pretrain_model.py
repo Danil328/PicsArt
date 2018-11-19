@@ -21,7 +21,7 @@ from main import create_train_image_generator
 path = '/media/danil/Data/Datasets/PicsArt/dataset1'
 BATCH = 8
 target_shape = (320, 240)
-supervision = True
+supervision = False
 
 def load_train_data(path):
     print('===LOAD DATA===')
