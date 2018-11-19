@@ -7,7 +7,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
 from model import Nest_Net
 from losses import  dice_coef_loss_bce, dice_coef, hard_dice_coef, binary_crossentropy
-from my_tools import rle_encoding, rle_decode
+from my_tools import rle_encoding, rle_decode, rle_encode
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
 from keras.models import load_model
@@ -41,7 +41,7 @@ def create_submission(image_names, predicted_mask, threshold=0.5):
     print('===CREATE SUBMISSION===')
     predicted_mask[predicted_mask >= threshold] = 1
     predicted_mask[predicted_mask < threshold] = 0
-    rle_mask = [rle_encoding(x) for x in predicted_mask]
+    rle_mask = [rle_encode(x) for x in predicted_mask]
     sub = pd.DataFrame()
     sub['image'] = image_names
     sub['image'] = sub['image'].map(lambda x: x.split('.')[0])
