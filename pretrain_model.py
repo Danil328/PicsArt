@@ -17,8 +17,8 @@ from main import create_train_image_generator
 
 # https://drive.google.com/file/d/0B0d9ZiqAgFkiOHR1NTJhWVJMNEU/view
 # path = 'PicsArt/data/'
-path = 'data/dataset1'
-# path = '/media/danil/Data/Datasets/PicsArt/dataset1'
+# path = 'data/dataset1'
+path = '/media/danil/Data/Datasets/PicsArt/dataset1'
 BATCH = 12
 target_shape = (320,240)
 
@@ -80,8 +80,8 @@ if __name__ == '__main__':
 
     # plt.figure()
     # imshow(train_images[100])
-    # plt.show()
+    # plt.show(block=False)
     # plt.figure()
     # imshow(train_mask[100,...,0])
-    # plt.show()
+    # plt.show(block=False)
 

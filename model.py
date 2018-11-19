@@ -5,7 +5,7 @@ from keras import backend as K
 from keras.layers import Input, merge, Conv2D, ZeroPadding2D, UpSampling2D, Dense, concatenate, Conv2DTranspose
 from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D, MaxPooling2D
 from keras.layers.core import Dense, Dropout, Activation
-from keras.layers import BatchNormalization, Dropout, Flatten, Lambda
+from keras.layers import BatchNormalization, Dropout, Flatten, Lambda, Add
 from keras.layers.advanced_activations import ELU, LeakyReLU
 from keras.optimizers import Adam, RMSprop, SGD
 from keras.regularizers import l2
@@ -23,12 +23,16 @@ act = "relu"
 ########################################
 
 def standard_unit(input_tensor, stage, nb_filter, kernel_size=3):
+    input = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv' + stage + '_0',
+               kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
+
     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv' + stage + '_1',
                kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
-    x = Dropout(dropout_rate, name='dp' + stage + '_1')(x)
+    # x = Dropout(dropout_rate, name='dp' + stage + '_1')(x)
     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv' + stage + '_2',
                kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(x)
-    x = Dropout(dropout_rate, name='dp' + stage + '_2')(x)
+    # x = Dropout(dropout_rate, name='dp' + stage + '_2')(x)
+    x = Add()([x, input])
 
     return x
 

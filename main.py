@@ -30,7 +30,7 @@ from albumentations import (
 )
 
 path = 'data/'
-#path = '/media/danil/Data/Datasets/PicsArt/data/'
+path = '/media/danil/Data/Datasets/PicsArt/data/'
 BATCH = 12
 
 def load_train_data(path):
@@ -50,7 +50,7 @@ def make_predict(model):
     image_names, test_images_array = load_test_data(path)
     test_images_array = test_images_array / 255.
     print('===PREDICT===')
-    predict_mask = model.predict(test_images_array, batch_size=1, verbose=1)
+    predict_mask = model.predict(test_images_array, batch_size=1)
     return test_images_array, predict_mask, image_names
 
 def create_submission(image_names, predicted_mask, threshold=0.5):
@@ -89,23 +89,20 @@ def create_train_image_generator(X_train, y_train, rescale=True):
             image_rgb += [augmented['image']]
             image_mask += [augmented['mask']]
             if len(image_rgb) == BATCH:
-                if rescale:
-                    yield np.stack(image_rgb,0)/255., np.expand_dims(np.stack(image_mask, 0),-1)/255.
-                else:
-                    yield np.stack(image_rgb, 0), np.expand_dims(np.stack(image_mask, 0), -1)
+                yield np.stack(image_rgb,0)/255., np.expand_dims(np.stack(image_mask, 0),-1)/255.
                 image_rgb, image_mask = [], []
 
     return train_generator
 
-def create_callbaks(model_name='unet++.h5'):
+def create_callbaks(model_name='unet++2.h5'):
     checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_dice_coef', mode='max', save_best_only=True, verbose=1)
     return [checkpoint]
 
 def train_model(train_generator):
     callbacks = create_callbaks()
-    model = Nest_Net(320, 240, 3)
-    #model = load_model('weights/unet_with_car_data2.h5', compile=False)
-    #model = load_model('weights/unet++2.h5', compile=False)
+    # model = Nest_Net(320, 240, 3)
+    model = load_model('weights/unet_with_car_data.h5', compile=False)
+    #model = load_model('weights/unet++.h5', compile=False)
     model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=dice_coef_loss_bce, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     print('===FIT MODEL===')
@@ -116,6 +113,22 @@ def train_model(train_generator):
                         callbacks=callbacks,
                         validation_data=(X_val, y_val),
                         initial_epoch=0)
+
+    model = load_model('weights/unet++.h5', compile=False)
+    model.compile(optimizer=Adam(1e-4, decay=1e-5), loss=dice_coef_loss_bce, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
+
+    model.fit_generator(train_generator,
+                        steps_per_epoch = X_train.shape[0]/BATCH,
+                        epochs=25,
+                        verbose=2,
+                        callbacks=callbacks,
+                        validation_data=(X_val, y_val),
+                        initial_epoch=20)
+
+    model = load_model('weights/unet++.h5', compile=False)
+    model.compile(optimizer=Adam(1e-4, decay=1e-5), loss=dice_coef_loss_bce, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
+    model.fit(X_train/255., y_train/255., batch_size=12, epochs=30, verbose=2, callbacks=callbacks,  validation_data=(X_val, y_val), initial_epoch=25)
+
     return model
 
 if __name__ == '__main__':
@@ -133,10 +146,10 @@ if __name__ == '__main__':
     imshow(y[0,...,0])
     plt.show(block=False)
 
-    # model = train_model(train_generator)
-    # model = load_model('weights/unet++.h5', compile = False)
-    # test_image_array, predicted_mask, test_image_names = make_predict(model)
-    # create_submission(test_image_names, predicted_mask, threshold=0.5)
+    model = train_model(train_generator)
+    model = load_model('weights/unet++.h5', compile = False)
+    test_image_array, predicted_mask, test_image_names = make_predict(model)
+    create_submission(test_image_names, predicted_mask, threshold=0.5)
 
     # plt.figure()
     # imshow(test_image_array[0])
