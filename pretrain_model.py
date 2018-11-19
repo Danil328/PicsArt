@@ -19,8 +19,9 @@ from main import create_train_image_generator
 # path = 'PicsArt/data/'
 # path = 'data/dataset1'
 path = '/media/danil/Data/Datasets/PicsArt/dataset1'
-BATCH = 12
-target_shape = (320,240)
+BATCH = 8
+target_shape = (320, 240)
+supervision = True
 
 def load_train_data(path):
     print('===LOAD DATA===')
@@ -54,12 +55,27 @@ if __name__ == '__main__':
     test_images, test_mask = load_test_data(path)
     test_mask = (test_mask == 8./255).astype(float)
 
-    train_generator = create_train_image_generator((train_images*255).astype(np.uint8), (train_mask*255).astype(np.uint8), rescale=True)
+    train_generator = create_train_image_generator((train_images*255).astype(np.uint8), (train_mask*255).astype(np.uint8), batch=BATCH, supervision = supervision)
 
-    model = Nest_Net(320, 240, 3)
+    model = Nest_Net(320, 240, 3, deep_supervision=supervision)
     #model = load_model('weights/unet_with_car_data.h5', compile=False)
-    model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=dice_coef_loss_bce, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
-    callbacks = create_callbaks(model_name='unet_with_car_data.h5')
+
+    if supervision:
+        loss = {'output_1': dice_coef_loss_bce,
+                'output_2': dice_coef_loss_bce,
+                'output_3': dice_coef_loss_bce,
+                'output_4': dice_coef_loss_bce}
+
+        val_data = (test_images, {'output_1': test_mask,
+                                  'output_2': test_mask,
+                                  'output_3': test_mask,
+                                  'output_4': test_mask})
+    else:
+        loss = dice_coef_loss_bce
+        val_data = (test_images, test_mask)
+
+    model.compile(optimizer=Adam(1e-3), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
+    callbacks = create_callbaks(model_name='unet_with_car_data_supervision.h5')
 
     print('===FIT MODEL===')
     model.fit_generator(train_generator,
@@ -67,10 +83,10 @@ if __name__ == '__main__':
                         epochs=20,
                         verbose=2,
                         callbacks=callbacks,
-                        validation_data=(test_images, test_mask))
+                        validation_data=val_data)
 
 
-    x,y = next(train_generator)
+    x, y = next(train_generator)
     plt.figure()
     imshow(x[0])
     plt.show(block=False)
@@ -78,10 +94,4 @@ if __name__ == '__main__':
     imshow(y[0,...,0])
     plt.show(block=False)
 
-    # plt.figure()
-    # imshow(train_images[100])
-    # plt.show(block=False)
-    # plt.figure()
-    # imshow(train_mask[100,...,0])
-    # plt.show(block=False)
 

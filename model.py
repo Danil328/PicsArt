@@ -23,17 +23,23 @@ act = "relu"
 ########################################
 
 def standard_unit(input_tensor, stage, nb_filter, kernel_size=3):
-    input = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv' + stage + '_0',
+
+    input = Conv2D(nb_filter, (kernel_size, kernel_size), activation=None, name='conv' + stage + '_0',
                kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
 
+    x = Activation('relu')(input)
+    x = BatchNormalization()(x)
+
     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv' + stage + '_1',
-               kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
+               kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(x)
+    x = BatchNormalization()(x)
     # x = Dropout(dropout_rate, name='dp' + stage + '_1')(x)
-    x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv' + stage + '_2',
+    x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=None, name='conv' + stage + '_2',
                kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(x)
     # x = Dropout(dropout_rate, name='dp' + stage + '_2')(x)
     x = Add()([x, input])
-
+    x = BatchNormalization()(x)
+    x = Activation(act)(x)
     return x
 
 """
@@ -112,9 +118,11 @@ def Nest_Net(img_rows, img_cols, color_type=1, num_class=1, deep_supervision=Fal
 
     conv1_1 = standard_unit(img_input, stage='11', nb_filter=nb_filter[0])
     pool1 = MaxPooling2D((2, 2), strides=(2, 2), name='pool1')(conv1_1)
+    pool1 = Dropout(dropout_rate)(pool1)
 
     conv2_1 = standard_unit(pool1, stage='21', nb_filter=nb_filter[1])
     pool2 = MaxPooling2D((2, 2), strides=(2, 2), name='pool2')(conv2_1)
+    pool2 = Dropout(dropout_rate)(pool2)
 
     up1_2 = Conv2DTranspose(nb_filter[0], (2, 2), strides=(2, 2), name='up12', padding='same')(conv2_1)
     conv1_2 = concatenate([up1_2, conv1_1], name='merge12', axis=bn_axis)
@@ -122,6 +130,7 @@ def Nest_Net(img_rows, img_cols, color_type=1, num_class=1, deep_supervision=Fal
 
     conv3_1 = standard_unit(pool2, stage='31', nb_filter=nb_filter[2])
     pool3 = MaxPooling2D((2, 2), strides=(2, 2), name='pool3')(conv3_1)
+    pool3 = Dropout(dropout_rate)(pool3)
 
     up2_2 = Conv2DTranspose(nb_filter[1], (2, 2), strides=(2, 2), name='up22', padding='same')(conv3_1)
     conv2_2 = concatenate([up2_2, conv2_1], name='merge22', axis=bn_axis)
@@ -133,6 +142,7 @@ def Nest_Net(img_rows, img_cols, color_type=1, num_class=1, deep_supervision=Fal
 
     conv4_1 = standard_unit(pool3, stage='41', nb_filter=nb_filter[3])
     pool4 = MaxPooling2D((2, 2), strides=(2, 2), name='pool4')(conv4_1)
+    pool4 = Dropout(dropout_rate)(pool4)
 
     up3_2 = Conv2DTranspose(nb_filter[2], (2, 2), strides=(2, 2), name='up32', padding='same')(conv4_1)
     conv3_2 = concatenate([up3_2, conv3_1], name='merge32', axis=bn_axis)
@@ -174,12 +184,12 @@ def Nest_Net(img_rows, img_cols, color_type=1, num_class=1, deep_supervision=Fal
                               padding='same', kernel_regularizer=l2(1e-4))(conv1_5)
 
     if deep_supervision:
-        model = Model(input=img_input, output=[nestnet_output_1,
+        model = Model(inputs=img_input, outputs=[nestnet_output_1,
                                                nestnet_output_2,
                                                nestnet_output_3,
                                                nestnet_output_4])
     else:
-        model = Model(input=img_input, output=[nestnet_output_4])
+        model = Model(inputs=img_input, outputs=[nestnet_output_4])
 
     return model
 
