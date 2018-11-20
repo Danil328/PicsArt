@@ -21,7 +21,7 @@ def attention_gating_block(shortcut, gating_signal, inter_channels):
     theta = Conv2D(inter_channels, (1, 1), use_bias=True, padding='same') (shortcut)
     phi = Conv2D(inter_channels, (1, 1), use_bias=True, padding='same') (gating_signal)
 
-    concat_theta_phi = add([theta, phi])
+    concat_theta_phi = Add()([theta, phi])
     psi = Activation('relu') (concat_theta_phi)
     compatibility_score = Conv2D(1, (1, 1), use_bias=True, padding='same') (psi)
     alpha = Activation('sigmoid') (compatibility_score)
@@ -47,7 +47,7 @@ def scSE_block(input_tensor):
     channel_se = cSE_block(input_tensor)
     spatial_se = sSE_block(input_tensor)
 
-    return add([channel_se, spatial_se])
+    return Add()([channel_se, spatial_se])
 
 ########################################
 # 2D Standard
