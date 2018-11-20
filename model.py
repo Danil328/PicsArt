@@ -88,8 +88,8 @@ def standard_unit(input_tensor, stage, nb_filter, kernel_size=3):
     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv' + stage + '_1', kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
     x = BatchNormalization()(x)
     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv'+stage+'_2', kernel_initializer = 'he_normal', padding='same', kernel_regularizer=l2(1e-4))(x)
-    conv_d1b_c = scSE_block(conv_d1b_c)
-    x = BatchNormalization()(conv_d1b_c)
+    x = scSE_block(x)
+    x = BatchNormalization()(x)
     return x
 
 """
