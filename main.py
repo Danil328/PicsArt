@@ -192,7 +192,7 @@ if __name__ == '__main__':
     # imshow(y[0,...,0])
     # plt.show(block=False)
 
-    #model = train_model(train_generator)
+    model = train_model(train_generator)
     model = load_model('weights/unet++.h5', compile = False)
 
     evaluate(model, X_val, y_val, 0.5)
