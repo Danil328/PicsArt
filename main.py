@@ -27,8 +27,8 @@ from albumentations import (
     JpegCompression
 )
 
-path = 'data/'
-path = '/media/danil/Data/Datasets/PicsArt/data/'
+path = 'PicsArt/data/'
+# path = '/media/danil/Data/Datasets/PicsArt/data/'
 BATCH = 8
 supervision = False
 
