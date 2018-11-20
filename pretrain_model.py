@@ -19,7 +19,7 @@ from main import create_train_image_generator
 # path = 'PicsArt/data/'
 # path = 'data/dataset1'
 path = '/media/danil/Data/Datasets/PicsArt/dataset1'
-BATCH = 8
+BATCH = 12
 target_shape = (320, 240)
 supervision = False
 
@@ -75,7 +75,7 @@ if __name__ == '__main__':
         val_data = (test_images, test_mask)
 
     model.compile(optimizer=Adam(1e-3), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
-    callbacks = create_callbaks(model_name='unet_with_car_data_supervision.h5')
+    callbacks = create_callbaks(model_name='unet_with_car_data.h5')
 
     print('===FIT MODEL===')
     model.fit_generator(train_generator,
@@ -84,7 +84,15 @@ if __name__ == '__main__':
                         verbose=2,
                         callbacks=callbacks,
                         validation_data=val_data)
-
+    
+    model = load_model('weights/unet_with_car_data.h5', compile=False)
+    model.compile(optimizer=Adam(1e-4), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
+    model.fit_generator(train_generator,
+                        steps_per_epoch = train_images.shape[0]/BATCH,
+                        epochs=10,
+                        verbose=2,
+                        callbacks=callbacks,
+                        validation_data=val_data)
 
     x, y = next(train_generator)
     plt.figure()
