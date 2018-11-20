@@ -117,7 +117,7 @@ def create_train_image_generator(X_train, y_train, batch = BATCH, supervision=Fa
     return train_generator
 
 def create_callbaks(model_name='unet++.h5'):
-    checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_dice_coef', mode='max', save_best_only=True, verbose=1)
+    checkpoint = ModelCheckpoint('PicsArt/weights/' + model_name, monitor='val_dice_coef', mode='max', save_best_only=True, verbose=1)
     return [checkpoint]
 
 def train_model(train_generator):
@@ -136,7 +136,7 @@ def train_model(train_generator):
     else:
         loss = dice_coef_loss_bce
         val_data = (X_val, y_val)
-        path_to_pretrained_model = 'PicsArt/weights/unet_with_car_data.h5'
+        path_to_pretrained_model = 'weights/unet_with_car_data.h5'
         callback_name = 'unet++.h5'
 
     callbacks = create_callbaks(callback_name)
@@ -153,7 +153,7 @@ def train_model(train_generator):
                         validation_data=val_data,
                         initial_epoch=0)
 
-    model = load_model(callback_name, compile=False)
+    model = load_model('PicsArt/weights/' + callback_name, compile=False)
     model.compile(optimizer=Adam(1e-4, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     model.fit_generator(train_generator,
@@ -164,7 +164,7 @@ def train_model(train_generator):
                         validation_data=val_data,
                         initial_epoch=20)
 
-    model = load_model(callback_name, compile=False)
+    model = load_model('PicsArt/weights/' + callback_name, compile=False)
     model.compile(optimizer=Adam(1e-4, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     if supervision:
@@ -193,7 +193,7 @@ if __name__ == '__main__':
     # plt.show(block=False)
 
     model = train_model(train_generator)
-    model = load_model('weights/unet++.h5', compile = False)
+    model = load_model('PicsArt/weights/unet++.h5', compile = False)
 
     evaluate(model, X_val, y_val, 0.5)
 
