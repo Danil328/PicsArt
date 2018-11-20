@@ -44,12 +44,12 @@ act = "relu"
 
 def standard_unit(input_tensor, stage, nb_filter, kernel_size=3):
     input = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv'+stage+'_0', kernel_initializer = 'he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
-    #input = BatchNormalization()(input)
+    input = BatchNormalization()(input)
     
     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv' + stage + '_1', kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
-    #x = BatchNormalization()(x)
+    x = BatchNormalization()(x)
     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv'+stage+'_2', kernel_initializer = 'he_normal', padding='same', kernel_regularizer=l2(1e-4))(x)
-    #x = BatchNormalization()(x)
+    x = BatchNormalization()(x)
     x = Add()([x, input])
     return x
 
