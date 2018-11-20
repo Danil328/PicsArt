@@ -28,8 +28,8 @@ from albumentations import (
     JpegCompression
 )
 
-path = 'PicsArt/data/'
-# path = '/media/danil/Data/Datasets/PicsArt/data/'
+# path = 'PicsArt/data/'
+path = '/media/danil/Data/Datasets/PicsArt/data/'
 BATCH = 12
 supervision = False
 
@@ -61,6 +61,8 @@ def make_predict(model):
         predict_mask = model.predict(test_images_array, batch_size=1)[-1]
     else:
         predict_mask = model.predict(test_images_array, batch_size=1)
+        predict_mask_tta = model.predict(np.fliplr(test_images_array), batch_size=1)
+        predict_mask = (predict_mask + predict_mask_tta) / 2.
     return test_images_array, predict_mask, image_names
 
 def evaluate(model, X_val, y_val, threshold=0.5):
@@ -125,7 +127,7 @@ def create_train_image_generator(X_train, y_train, batch = BATCH, supervision=Fa
     return train_generator
 
 def create_callbaks(model_name='unet++.h5'):
-    checkpoint = ModelCheckpoint('PicsArt/weights/' + model_name, monitor='val_dice_coef', mode='max', save_best_only=True, verbose=1)
+    checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_dice_coef', mode='max', save_best_only=True, verbose=1)
     return [checkpoint]
 
 def train_model(train_generator):
@@ -161,7 +163,7 @@ def train_model(train_generator):
                         validation_data=val_data,
                         initial_epoch=0)
 
-    model = load_model('PicsArt/weights/' + callback_name, compile=False)
+    model = load_model('weights/' + callback_name, compile=False)
     model.compile(optimizer=Adam(0.0005, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     model.fit_generator(train_generator,
@@ -172,12 +174,12 @@ def train_model(train_generator):
                         validation_data=val_data,
                         initial_epoch=20)
 
-    model = load_model('PicsArt/weights/' + callback_name, compile=False)
+    model = load_model('weights/' + callback_name, compile=False)
     model.compile(optimizer=Adam(1e-4, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     if supervision:
         model.fit(X_train / 255., {'output_1': y_train / 255., 'output_2': y_train / 255., 'output_3': y_train / 255., 'output_4': y_train / 255.},
-                  batch_size=BATCH, epochs=40, verbose=2, callbacks=callbacks,
+                  batch_size=BATCH, epochs=50, verbose=2, callbacks=callbacks,
                   validation_data=val_data, initial_epoch=30)
     else:
         model.fit(X_train/255., y_train/255., batch_size=BATCH, epochs=40, verbose=2, callbacks=callbacks,
@@ -201,7 +203,7 @@ if __name__ == '__main__':
     # plt.show(block=False)
 
     model = train_model(train_generator)
-    model = load_model('PicsArt/weights/unet++.h5', compile = False)
+    model = load_model('weights/unet++.h5', compile = False)
 
     evaluate(model, X_val, y_val, 0.5)
 
