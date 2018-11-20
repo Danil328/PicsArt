@@ -140,8 +140,8 @@ def train_model(train_generator):
         callback_name = 'unet++.h5'
 
     callbacks = create_callbaks(callback_name)
-    # model = Nest_Net(320, 240, 3)
-    model = load_model(path_to_pretrained_model, compile=False)
+    model = Nest_Net(320, 240, 3)
+    # model = load_model(path_to_pretrained_model, compile=False)
     model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     print('===FIT MODEL===')
