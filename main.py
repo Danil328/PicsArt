@@ -30,7 +30,7 @@ from albumentations import (
 
 path = 'PicsArt/data/'
 # path = '/media/danil/Data/Datasets/PicsArt/data/'
-BATCH = 8
+BATCH = 12
 supervision = False
 
 import gc
@@ -205,8 +205,8 @@ if __name__ == '__main__':
 
     evaluate(model, X_val, y_val, 0.5)
 
-    #test_image_array, predicted_mask, test_image_names = make_predict(model)
-    #create_submission(test_image_names, predicted_mask, threshold=0.5)
+    test_image_array, predicted_mask, test_image_names = make_predict(model)
+    create_submission(test_image_names, predicted_mask, threshold=0.5)
 
     # plt.figure()
     # imshow(test_image_array[0])
