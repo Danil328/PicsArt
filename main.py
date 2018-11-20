@@ -11,6 +11,7 @@ from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
 from keras.models import load_model
 from my_tools import dice
+import tensorflow as tf
 from albumentations import (
     HorizontalFlip,
     VerticalFlip,
