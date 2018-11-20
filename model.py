@@ -157,7 +157,7 @@ Total params: 9,041,601
 
 def Nest_Net(img_rows, img_cols, color_type=1, num_class=1, deep_supervision=False):
     # nb_filter = [32, 64, 128, 256, 512]
-    nb_filter = [64, 128, 256, 512, 1024]
+    nb_filter = [16, 32, 64, 128, 256]
 
     # Handle Dimension Ordering for different backends
     global bn_axis
