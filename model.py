@@ -2,7 +2,7 @@ import keras
 import tensorflow as tf
 from keras.models import Model
 from keras import backend as K
-from keras.layers import Input, merge, Conv2D, ZeroPadding2D, UpSampling2D, Dense, concatenate, Conv2DTranspose, Reshape
+from keras.layers import Input, merge, Conv2D, ZeroPadding2D, UpSampling2D, Dense, concatenate, Conv2DTranspose, Reshape, multiply
 from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D, MaxPooling2D
 from keras.layers.core import Dense, Dropout, Activation
 from keras.layers import BatchNormalization, Dropout, Flatten, Lambda, Add
