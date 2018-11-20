@@ -73,24 +73,24 @@ def scSE_block(input_tensor):
 #     x = Activation(act)(x)
 #     return x
 
-# def standard_unit(input_tensor, stage, nb_filter, kernel_size=3):
-#     input = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv'+stage+'_0', kernel_initializer = 'he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
-#     input = BatchNormalization()(input)
+def standard_unit(input_tensor, stage, nb_filter, kernel_size=3):
+    input = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv'+stage+'_0', kernel_initializer = 'he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
+    input = BatchNormalization()(input)
     
-#     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv' + stage + '_1', kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
-#     x = BatchNormalization()(x)
-#     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv'+stage+'_2', kernel_initializer = 'he_normal', padding='same', kernel_regularizer=l2(1e-4))(x)
-#     x = BatchNormalization()(x)
-#     x = Add()([x, input])
-#     return x
-
-def standard_unit(input_tensor, stage, nb_filter, kernel_size=3): 
     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv' + stage + '_1', kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
     x = BatchNormalization()(x)
     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv'+stage+'_2', kernel_initializer = 'he_normal', padding='same', kernel_regularizer=l2(1e-4))(x)
-    x = scSE_block(x)
     x = BatchNormalization()(x)
+    x = Add()([x, input])
     return x
+
+# def standard_unit(input_tensor, stage, nb_filter, kernel_size=3): 
+#     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv' + stage + '_1', kernel_initializer='he_normal', padding='same', kernel_regularizer=l2(1e-4))(input_tensor)
+#     x = BatchNormalization()(x)
+#     x = Conv2D(nb_filter, (kernel_size, kernel_size), activation=act, name='conv'+stage+'_2', kernel_initializer = 'he_normal', padding='same', kernel_regularizer=l2(1e-4))(x)
+#     x = scSE_block(x)
+#     x = BatchNormalization()(x)
+#     return x
 
 """
 wU-Net for comparison
@@ -156,7 +156,8 @@ Total params: 9,041,601
 
 
 def Nest_Net(img_rows, img_cols, color_type=1, num_class=1, deep_supervision=False):
-    nb_filter = [32, 64, 128, 256, 512]
+    # nb_filter = [32, 64, 128, 256, 512]
+    nb_filter = [64, 128, 256, 512, 1024]
 
     # Handle Dimension Ordering for different backends
     global bn_axis
