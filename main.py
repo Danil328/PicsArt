@@ -149,7 +149,7 @@ def train_model(train_generator):
     callbacks = create_callbaks(callback_name)
     model = Nest_Net(320, 240, 3)
     # model = load_model(path_to_pretrained_model, compile=False)
-    model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
+    model.compile(optimizer=Adam(1e-2), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     print('===FIT MODEL===')
     model.fit_generator(train_generator,
@@ -161,11 +161,11 @@ def train_model(train_generator):
                         initial_epoch=0)
 
     model = load_model('PicsArt/weights/' + callback_name, compile=False)
-    model.compile(optimizer=Adam(1e-4, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
+    model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     model.fit_generator(train_generator,
                         steps_per_epoch = X_train.shape[0]/BATCH,
-                        epochs=25,
+                        epochs=30,
                         verbose=2,
                         callbacks=callbacks,
                         validation_data=val_data,
@@ -176,11 +176,11 @@ def train_model(train_generator):
 
     if supervision:
         model.fit(X_train / 255., {'output_1': y_train / 255., 'output_2': y_train / 255., 'output_3': y_train / 255., 'output_4': y_train / 255.},
-                  batch_size=BATCH, epochs=30, verbose=2, callbacks=callbacks,
-                  validation_data=val_data, initial_epoch=25)
+                  batch_size=BATCH, epochs=40, verbose=2, callbacks=callbacks,
+                  validation_data=val_data, initial_epoch=30)
     else:
-        model.fit(X_train/255., y_train/255., batch_size=BATCH, epochs=30, verbose=2, callbacks=callbacks,
-                  validation_data=val_data, initial_epoch=25)
+        model.fit(X_train/255., y_train/255., batch_size=BATCH, epochs=40, verbose=2, callbacks=callbacks,
+                  validation_data=val_data, initial_epoch=30)
 
     return model
 
