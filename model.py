@@ -67,6 +67,7 @@ def wU_Net(img_rows, img_cols, color_type=1, num_class=1):
     if K.image_dim_ordering() == 'tf':
         bn_axis = 3
         img_input = Input(shape=(img_rows, img_cols, color_type), name='main_input')
+        img_input = BatchNormalization()(img_input)
     else:
         bn_axis = 1
         img_input = Input(shape=(color_type, img_rows, img_cols), name='main_input')
