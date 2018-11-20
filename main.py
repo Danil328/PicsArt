@@ -136,7 +136,7 @@ def train_model(train_generator):
     else:
         loss = dice_coef_loss_bce
         val_data = (X_val, y_val)
-        path_to_pretrained_model = 'weights/unet_with_car_data.h5'
+        path_to_pretrained_model = 'PicsArt/weights/unet_with_car_data.h5'
         callback_name = 'unet++.h5'
 
     callbacks = create_callbaks(callback_name)
