@@ -32,6 +32,13 @@ path = 'PicsArt/data/'
 BATCH = 8
 supervision = False
 
+import gc
+import cv2
+cv2.setNumThreads(0)
+cv2.ocl.setUseOpenCL(False)
+gpu_options = tf.GPUOptions(allow_growth=True)
+session = tf.InteractiveSession(config=tf.ConfigProto(gpu_options=gpu_options))
+
 def load_train_data(path):
     print('===LOAD DATA===')
     train_images = os.listdir(os.path.join(path, 'train'))
