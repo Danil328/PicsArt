@@ -61,8 +61,9 @@ def make_predict(model):
         predict_mask = model.predict(test_images_array, batch_size=1)[-1]
     else:
         predict_mask = model.predict(test_images_array, batch_size=1)
-        predict_mask_tta = model.predict(np.fliplr(test_images_array), batch_size=1)
-        predict_mask = (predict_mask + predict_mask_tta) / 2.
+        #predict_mask_tta = model.predict(np.fliplr(test_images_array), batch_size=1)
+        #predict_mask_tta = np.fliplr(predict_mask_tta)
+        #predict_mask = (predict_mask + predict_mask_tta) / 2.
     return test_images_array, predict_mask, image_names
 
 def evaluate(model, X_val, y_val, threshold=0.5):
