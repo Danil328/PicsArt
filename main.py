@@ -155,7 +155,7 @@ def train_model(train_generator):
         loss_weight = [1.]
 
     callbacks = create_callbaks(callback_name)
-    model = Nest_Net(320, 240, 3)
+    model = Nest_Net(320, 240, 3, supervision=supervision)
     # model = load_model(path_to_pretrained_model, compile=False)
     model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=loss, metrics=metric, loss_weights=loss_weight)
 
