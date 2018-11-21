@@ -31,7 +31,7 @@ from albumentations import (
 path = 'PicsArt/data/'
 # path = '/media/danil/Data/Datasets/PicsArt/data/'
 BATCH = 12
-supervision = False
+supervision = True
 
 import gc
 import cv2
