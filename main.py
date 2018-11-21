@@ -8,7 +8,7 @@ from model import Nest_Net
 from losses import  dice_coef_loss_bce, dice_coef, hard_dice_coef, binary_crossentropy
 from my_tools import rle_encoding, rle_decode, rle_encode, visualize
 from keras.callbacks import ModelCheckpoint
-from keras.optimizers import Adam
+from keras.optimizers import Adam, SGD
 from keras.models import load_model
 from my_tools import dice
 import tensorflow as tf
@@ -133,9 +133,9 @@ def create_callbaks(model_name='unet++.h5'):
 
 def train_model(train_generator):
     if supervision:
-        loss = {'output_1': dice_coef_loss_bce,
-                'output_2': dice_coef_loss_bce,
-                'output_3': dice_coef_loss_bce,
+        loss = {'output_1': binary_crossentropy,
+                'output_2': binary_crossentropy,
+                'output_3': binary_crossentropy,
                 'output_4': dice_coef_loss_bce}
 
         val_data = (X_val, {'output_1': y_val,
@@ -144,16 +144,20 @@ def train_model(train_generator):
                                   'output_4': y_val})
         path_to_pretrained_model = 'weights/unet_with_car_data_supervision.h5'
         callback_name = 'unet++supervision.h5'
+        metric = [{'output_4': dice_coef}, {'output_4': hard_dice_coef}, {'output_4': binary_crossentropy}]
+        loss_weight = [0.25, 0.25, 0.5, 1.]
     else:
         loss = dice_coef_loss_bce
         val_data = (X_val, y_val)
         path_to_pretrained_model = 'weights/unet_with_car_data.h5'
         callback_name = 'unet++.h5'
+        metric = [dice_coef, hard_dice_coef, binary_crossentropy]
+        loss_weight = [1.]
 
     callbacks = create_callbaks(callback_name)
     model = Nest_Net(320, 240, 3)
     # model = load_model(path_to_pretrained_model, compile=False)
-    model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
+    model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=loss, metrics=metric, loss_weights=loss_weight)
 
     print('===FIT MODEL===')
     model.fit_generator(train_generator,
@@ -180,11 +184,24 @@ def train_model(train_generator):
 
     if supervision:
         model.fit(X_train / 255., {'output_1': y_train / 255., 'output_2': y_train / 255., 'output_3': y_train / 255., 'output_4': y_train / 255.},
-                  batch_size=BATCH, epochs=50, verbose=2, callbacks=callbacks,
-                  validation_data=val_data, initial_epoch=30)
+                  batch_size=BATCH, epochs=40, verbose=2, callbacks=callbacks, validation_data=val_data, initial_epoch=30)
     else:
         model.fit(X_train/255., y_train/255., batch_size=BATCH, epochs=40, verbose=2, callbacks=callbacks,
                   validation_data=val_data, initial_epoch=30)
+
+    #SGD
+    model = load_model('weights/' + callback_name, compile=False)
+    model.compile(optimizer=SGD(1e-4/2.), loss=loss,
+                  metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
+
+    if supervision:
+        model.fit(X_train / 255.,
+                  {'output_1': y_train / 255., 'output_2': y_train / 255., 'output_3': y_train / 255., 'output_4': y_train / 255.},
+                  batch_size=BATCH, epochs=50, verbose=2, callbacks=callbacks, validation_data=val_data, initial_epoch=40)
+    else:
+        model.fit(X_train / 255., y_train / 255., batch_size=BATCH, epochs=50, verbose=2, callbacks=callbacks,
+                  validation_data=val_data, initial_epoch=40)
+
 
     return model
 

@@ -61,20 +61,24 @@ if __name__ == '__main__':
     #model = load_model('weights/unet_with_car_data.h5', compile=False)
 
     if supervision:
-        loss = {'output_1': dice_coef_loss_bce,
-                'output_2': dice_coef_loss_bce,
-                'output_3': dice_coef_loss_bce,
+        loss = {'output_1': binary_crossentropy,
+                'output_2': binary_crossentropy,
+                'output_3': binary_crossentropy,
                 'output_4': dice_coef_loss_bce}
 
         val_data = (test_images, {'output_1': test_mask,
                                   'output_2': test_mask,
                                   'output_3': test_mask,
                                   'output_4': test_mask})
+        metric = [{'output_4': dice_coef}, {'output_4': hard_dice_coef}, {'output_4': binary_crossentropy}]
+        loss_weight = [0.25, 0.25, 0.5, 1.]
     else:
         loss = dice_coef_loss_bce
         val_data = (test_images, test_mask)
+        metric = [dice_coef, hard_dice_coef, binary_crossentropy]
+        loss_weight = [1.]
 
-    model.compile(optimizer=Adam(1e-3), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
+    model.compile(optimizer=Adam(1e-3), loss=loss, metrics=metric, loss_weights=loss_weight)
     callbacks = create_callbaks(model_name='unet_with_car_data.h5')
 
     print('===FIT MODEL===')
@@ -85,7 +89,7 @@ if __name__ == '__main__':
                         callbacks=callbacks,
                         validation_data=val_data)
     
-    model = load_model('weights/unet_with_car_data.h5', compile=False)
+    model = load_model('weights/unet_with_car_data_supervision.h5', compile=False)
     model.compile(optimizer=Adam(1e-4), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
     model.fit_generator(train_generator,
                         steps_per_epoch = train_images.shape[0]/BATCH,
