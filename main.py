@@ -28,10 +28,10 @@ from albumentations import (
     JpegCompression
 )
 
-path = 'PicsArt/data/'
-# path = '/media/danil/Data/Datasets/PicsArt/data/'
+# path = 'PicsArt/data/'
+path = '/media/danil/Data/Datasets/PicsArt/data/'
 BATCH = 12
-supervision = True
+supervision = False
 
 import gc
 import cv2
@@ -128,7 +128,7 @@ def create_train_image_generator(X_train, y_train, batch = BATCH, supervision=Fa
     return train_generator
 
 def create_callbaks(model_name='unet++.h5'):
-    checkpoint = ModelCheckpoint('PicsArt/weights/' + model_name, monitor='val_dice_coef', mode='max', save_best_only=True, verbose=1)
+    checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_output_4_dice_coef', mode='max', save_best_only=True, verbose=1)
     return [checkpoint]
 
 def train_model(train_generator):
@@ -142,21 +142,21 @@ def train_model(train_generator):
                                   'output_2': y_val,
                                   'output_3': y_val,
                                   'output_4': y_val})
-        path_to_pretrained_model = 'weights/unet_with_car_data_supervision.h5'
-        callback_name = 'unet++supervision.h5'
+        path_to_pretrained_model = 'weights/unet++supervision.h5'
+        callback_name = 'my_unet++supervision.h5'
         metric = {'output_4': [dice_coef, hard_dice_coef, binary_crossentropy]}
         loss_weight = [0.25, 0.25, 0.5, 1.]
     else:
         loss = dice_coef_loss_bce
         val_data = (X_val, y_val)
-        path_to_pretrained_model = 'weights/unet_with_car_data.h5'
+        path_to_pretrained_model = 'weights/unet++supervision.h5'
         callback_name = 'unet++.h5'
         metric = [dice_coef, hard_dice_coef, binary_crossentropy]
         loss_weight = [1.]
 
     callbacks = create_callbaks(callback_name)
-    model = Nest_Net(320, 240, 3, deep_supervision=supervision)
-    # model = load_model(path_to_pretrained_model, compile=False)
+    # model = Nest_Net(320, 240, 3, deep_supervision=supervision)
+    model = load_model(path_to_pretrained_model, compile=False)
     model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=loss, metrics=metric, loss_weights=loss_weight)
 
     print('===FIT MODEL===')
@@ -179,7 +179,7 @@ def train_model(train_generator):
                         validation_data=val_data,
                         initial_epoch=20)
 
-    model = load_model('PicsArt/weights/' + callback_name, compile=False)
+    model = load_model('weights/' + callback_name, compile=False)
     model.compile(optimizer=Adam(1e-4, decay=1e-5), loss=loss, metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     if supervision:
@@ -190,7 +190,7 @@ def train_model(train_generator):
                   validation_data=val_data, initial_epoch=30)
 
     #SGD
-    model = load_model('PicsArt/weights/' + callback_name, compile=False)
+    model = load_model('weights/' + callback_name, compile=False)
     model.compile(optimizer=SGD(1e-4/2.), loss=loss,
                   metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
