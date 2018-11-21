@@ -70,7 +70,7 @@ if __name__ == '__main__':
                                   'output_2': test_mask,
                                   'output_3': test_mask,
                                   'output_4': test_mask})
-        metric = [{'output_4': dice_coef}, {'output_4': hard_dice_coef}, {'output_4': binary_crossentropy}]
+        metric = {'output_4': [dice_coef, hard_dice_coef, binary_crossentropy]}
         loss_weight = [0.25, 0.25, 0.5, 1.]
     else:
         loss = dice_coef_loss_bce

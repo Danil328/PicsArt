@@ -144,7 +144,7 @@ def train_model(train_generator):
                                   'output_4': y_val})
         path_to_pretrained_model = 'weights/unet_with_car_data_supervision.h5'
         callback_name = 'unet++supervision.h5'
-        metric = [{'output_4': dice_coef}, {'output_4': hard_dice_coef}, {'output_4': binary_crossentropy}]
+        metric = {'output_4': [dice_coef, hard_dice_coef, binary_crossentropy]}
         loss_weight = [0.25, 0.25, 0.5, 1.]
     else:
         loss = dice_coef_loss_bce
