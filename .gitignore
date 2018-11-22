@@ -2,3 +2,5 @@ data/
 .idea/
 weights/
 submission/
+cross_val_predicts/
+.ipynb_checkpoints/
