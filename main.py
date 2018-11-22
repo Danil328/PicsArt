@@ -3,7 +3,7 @@ from skimage.io import imread, imshow
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from model import Nest_Net
 from losses import  dice_coef_loss_bce, dice_coef, hard_dice_coef, binary_crossentropy
 from my_tools import rle_encoding, rle_decode, rle_encode, visualize
@@ -31,7 +31,8 @@ from albumentations import (
 # path = 'PicsArt/data/'
 path = '/media/danil/Data/Datasets/PicsArt/data/'
 BATCH = 12
-supervision = False
+supervision = True
+CV = 0
 
 import gc
 import cv2
@@ -46,6 +47,35 @@ def load_train_data(path):
     train_images_list = [imread(os.path.join(path, 'train', img)) for img in train_images]
     train_mask_list = [imread(os.path.join(path, 'train_mask', img.split('.')[0]+'.png')) for img in train_images]
     return np.array(train_images_list), np.expand_dims(np.array(train_mask_list),-1)
+
+def split_train_data_to_cv():
+    skf = KFold(n_splits=5, shuffle=True, random_state=17)
+    train_images = os.listdir(os.path.join(path, 'train'))
+    train_images = np.array(train_images)
+    X_train_cv = skf.split(train_images)
+
+    index_train_dict = {}
+    index_test_dict = {}
+    for i in range(5):
+        ind = next(X_train_cv)
+        index_train_dict['split_{}'.format(i)] = ind[0]
+        index_test_dict['split_{}'.format(i)] = ind[1]
+        np.save('cross_val/train_split_{}'.format(i), train_images[index_train_dict['split_{}'.format(i)]])
+        np.save('cross_val/val_split_{}'.format(i), train_images[index_test_dict['split_{}'.format(i)]])
+
+def read_cv_data(N=0):
+    train_names = np.load('cross_val/train_split_{}.npy'.format(N))
+    val_names = np.load('cross_val/val_split_{}.npy'.format(N))
+
+    path = '/media/danil/Data/Datasets/PicsArt/data/'
+    train_images_list = [imread(os.path.join(path, 'train', img)) for img in train_names]
+    train_mask_list = [imread(os.path.join(path, 'train_mask', img.split('.')[0] + '.png')) for img in train_names]
+
+    val_images_list = [imread(os.path.join(path, 'train', img)) for img in val_names]
+    val_mask_list = [imread(os.path.join(path, 'train_mask', img.split('.')[0] + '.png')) for img in val_names]
+
+    return np.array(train_images_list), np.expand_dims(np.array(train_mask_list), -1),\
+           np.array(val_images_list), np.expand_dims(np.array(val_mask_list), -1)
 
 def load_test_data(path):
     print('===LOAD TEST DATA===')
@@ -67,7 +97,7 @@ def make_predict(model):
     return test_images_array, predict_mask, image_names
 
 def evaluate(model, X_val, y_val, threshold=0.5):
-    pred = model.predict(X_val)
+    pred = model.predict(X_val)[-1]
     pred[pred >= threshold] = 1
     pred[pred < threshold] = 0
     dice_list = [dice(y_val[i], pred[i]) for i in range(X_val.shape[0])]
@@ -82,12 +112,12 @@ def create_submission(image_names, predicted_mask, threshold=0.5):
     sub['image'] = image_names
     sub['image'] = sub['image'].map(lambda x: x.split('.')[0])
     sub['rle_mask'] = rle_mask
-    sub.to_csv('submission/submission.csv', index=False)
+    sub.to_csv('submission/supervision_submission.csv', index=False)
 
 def create_train_image_generator(X_train, y_train, batch = BATCH, supervision=False):
     aug = Compose([
         VerticalFlip(p=0.25),
-        HorizontalFlip(p=0.25),
+        HorizontalFlip(p=0.5),
         OneOf([
             ElasticTransform(p=0.5, alpha=1, sigma=50, alpha_affine=50),
             GridDistortion(p=0.5),
@@ -127,8 +157,8 @@ def create_train_image_generator(X_train, y_train, batch = BATCH, supervision=Fa
 
     return train_generator
 
-def create_callbaks(model_name='unet++.h5'):
-    checkpoint = ModelCheckpoint('weights/' + model_name, monitor='val_output_4_dice_coef', mode='max', save_best_only=True, verbose=1)
+def create_callbaks(model_name='unet++.h5', monitor='val_dice_coef'):
+    checkpoint = ModelCheckpoint('weights/' + model_name, monitor=monitor, mode='max', save_best_only=True, verbose=1)
     return [checkpoint]
 
 def train_model(train_generator):
@@ -142,19 +172,21 @@ def train_model(train_generator):
                                   'output_2': y_val,
                                   'output_3': y_val,
                                   'output_4': y_val})
-        path_to_pretrained_model = 'weights/unet++supervision.h5'
-        callback_name = 'my_unet++supervision.h5'
+        path_to_pretrained_model = 'weights/real_unet++supervision.h5'
+        callback_name = 'my_unet++supervision_cv{}'.format(CV) + '.h5'
+        monitor = 'val_output_4_dice_coef'
         metric = {'output_4': [dice_coef, hard_dice_coef, binary_crossentropy]}
         loss_weight = [0.25, 0.25, 0.5, 1.]
     else:
         loss = dice_coef_loss_bce
         val_data = (X_val, y_val)
         path_to_pretrained_model = 'weights/unet++supervision.h5'
-        callback_name = 'unet++.h5'
+        callback_name = 'unet++_cv{}'.format(CV) + '.h5'
+        monitor = 'val_dice_coef'
         metric = [dice_coef, hard_dice_coef, binary_crossentropy]
         loss_weight = [1.]
 
-    callbacks = create_callbaks(callback_name)
+    callbacks = create_callbaks(callback_name, monitor)
     # model = Nest_Net(320, 240, 3, deep_supervision=supervision)
     model = load_model(path_to_pretrained_model, compile=False)
     model.compile(optimizer=Adam(1e-3, decay=1e-5), loss=loss, metrics=metric, loss_weights=loss_weight)
@@ -191,7 +223,7 @@ def train_model(train_generator):
 
     #SGD
     model = load_model('weights/' + callback_name, compile=False)
-    model.compile(optimizer=SGD(1e-4/2.), loss=loss,
+    model.compile(optimizer=SGD(1e-4), loss=loss,
                   metrics=[dice_coef, hard_dice_coef, binary_crossentropy])
 
     if supervision:
@@ -206,8 +238,11 @@ def train_model(train_generator):
     return model
 
 if __name__ == '__main__':
-    train_images, train_mask = load_train_data(path)
-    X_train, X_val, y_train, y_val = train_test_split(train_images, train_mask, test_size = 0.15, random_state = 17)
+    # train_images, train_mask = load_train_data(path)
+    # split_train_data_to_cv()
+
+    X_train, y_train, X_val, y_val = read_cv_data(CV)
+    # X_train, X_val, y_train, y_val = train_test_split(train_images, train_mask, test_size = 0.15, random_state = 17)
     X_val = X_val / 255.
     y_val = y_val / 255.
 
@@ -221,7 +256,7 @@ if __name__ == '__main__':
     # plt.show(block=False)
 
     model = train_model(train_generator)
-    model = load_model('weights/unet++.h5', compile = False)
+    model = load_model('weights/my_unet++supervision_cv{}'.format(CV) + '.h5', compile = False)
 
     evaluate(model, X_val, y_val, 0.5)
 
