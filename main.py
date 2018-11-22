@@ -30,9 +30,9 @@ from albumentations import (
 
 # path = 'PicsArt/data/'
 path = '/media/danil/Data/Datasets/PicsArt/data/'
-BATCH = 12
+BATCH = 16
 supervision = True
-CV = 0
+CV = 1
 
 import gc
 import cv2
@@ -96,12 +96,18 @@ def make_predict(model):
         #predict_mask = (predict_mask + predict_mask_tta) / 2.
     return test_images_array, predict_mask, image_names
 
-def evaluate(model, X_val, y_val, threshold=0.5):
+def evaluate(model, X_val, y_val):
     pred = model.predict(X_val)[-1]
-    pred[pred >= threshold] = 1
-    pred[pred < threshold] = 0
-    dice_list = [dice(y_val[i], pred[i]) for i in range(X_val.shape[0])]
-    print("Evaluate Dice coefficient: {}".format(np.mean(dice_list)))
+    score = []
+    thresholds = np.arange(0.25, 0.75, 0.05)
+    for threshold in thresholds:
+        temp = pred.copy()
+        temp[temp >= threshold] = 1
+        temp[temp < threshold] = 0
+        dice_list = [dice(y_val[i], temp[i]) for i in range(X_val.shape[0])]
+        score.append(np.mean(dice_list))
+
+    print("Evaluate Dice coefficient: Best_score = {} Best_threshold = {}".format(np.max(score), thresholds[np.argmax(score)]))
 
 def create_submission(image_names, predicted_mask, threshold=0.5):
     print('===CREATE SUBMISSION===')
@@ -112,7 +118,7 @@ def create_submission(image_names, predicted_mask, threshold=0.5):
     sub['image'] = image_names
     sub['image'] = sub['image'].map(lambda x: x.split('.')[0])
     sub['rle_mask'] = rle_mask
-    sub.to_csv('submission/supervision_submission.csv', index=False)
+    sub.to_csv('submission/supervision_submission_cv{}.csv'.format(CV), index=False)
 
 def create_train_image_generator(X_train, y_train, batch = BATCH, supervision=False):
     aug = Compose([
@@ -258,7 +264,7 @@ if __name__ == '__main__':
     model = train_model(train_generator)
     model = load_model('weights/my_unet++supervision_cv{}'.format(CV) + '.h5', compile = False)
 
-    evaluate(model, X_val, y_val, 0.5)
+    evaluate(model, X_val, y_val)
 
     test_image_array, predicted_mask, test_image_names = make_predict(model)
     create_submission(test_image_names, predicted_mask, threshold=0.5)
@@ -269,3 +275,8 @@ if __name__ == '__main__':
     # plt.figure()
     # imshow(predicted_mask[0,...,0])
     # plt.show()
+
+
+"""
+Evaluate Dice coefficient CV 0: Best_score = 0.9589819573059134 Best_threshold = 0.5
+"""
