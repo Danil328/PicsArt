@@ -32,7 +32,9 @@ from albumentations import (
 path = '/media/danil/Data/Datasets/PicsArt/data/'
 BATCH = 16
 supervision = True
-CV = 4
+CV = 0
+
+MODE = 'stack'  # train predict stack
 
 import gc
 import cv2
@@ -77,6 +79,22 @@ def read_cv_data(N=0):
     return np.array(train_images_list), np.expand_dims(np.array(train_mask_list), -1),\
            np.array(val_images_list), np.expand_dims(np.array(val_mask_list), -1)
 
+def stack_prediction(N=5):
+    files = []
+    for i in range(N):
+        files += [np.load('cross_val_predicts/predicted_mask_cv_{}.npy'.format(i)).item()]
+
+    image_names = list(files[0].keys())
+    union_predict = np.empty((len(image_names), 320, 240, 1), dtype=np.float32)
+    for i, image_name in enumerate(image_names):
+        temp = np.zeros((320, 240, 1))
+        for k in range(N):
+            temp += files[k][image_name]
+        temp = temp/N
+        union_predict[i] = temp
+
+    create_submission(image_names, union_predict, threshold=0.59, stack=True)
+
 def load_test_data(path):
     print('===LOAD TEST DATA===')
     image_names = os.listdir(os.path.join(path, 'test'))
@@ -112,7 +130,7 @@ def evaluate(model, X_val, y_val):
 
     print("Evaluate Dice coefficient CV {}: Best_score = {} Best_threshold = {}".format(CV, np.max(score), thresholds[np.argmax(score)]))
 
-def create_submission(image_names, predicted_mask, threshold=0.5):
+def create_submission(image_names, predicted_mask, threshold=0.5, stack=False):
     print('===CREATE SUBMISSION===')
     predicted_mask[predicted_mask >= threshold] = 1
     predicted_mask[predicted_mask < threshold] = 0
@@ -121,7 +139,10 @@ def create_submission(image_names, predicted_mask, threshold=0.5):
     sub['image'] = image_names
     sub['image'] = sub['image'].map(lambda x: x.split('.')[0])
     sub['rle_mask'] = rle_mask
-    sub.to_csv('submission/supervision_submission_cv{}.csv'.format(CV), index=False)
+    if stack:
+        sub.to_csv('submission/supervision_submission_stack.csv', index=False)
+    else:
+        sub.to_csv('submission/supervision_submission_cv{}.csv'.format(CV), index=False)
 
 def create_train_image_generator(X_train, y_train, batch = BATCH, supervision=False):
     aug = Compose([
@@ -250,31 +271,34 @@ if __name__ == '__main__':
     # train_images, train_mask = load_train_data(path)
     # split_train_data_to_cv()
 
-    X_train, y_train, X_val, y_val = read_cv_data(CV)
-    # X_train, X_val, y_train, y_val = train_test_split(train_images, train_mask, test_size = 0.15, random_state = 17)
-    X_val = X_val / 255.
-    y_val = y_val / 255.
+    if MODE == 'train':
+        X_train, y_train, X_val, y_val = read_cv_data(CV)
+        # X_train, X_val, y_train, y_val = train_test_split(train_images, train_mask, test_size = 0.15, random_state = 17)
+        X_val = X_val / 255.
+        y_val = y_val / 255.
 
-    train_generator = create_train_image_generator(X_train, y_train, supervision=supervision)
-    # x,y = next(train_generator)
-    # plt.figure()
-    # imshow(x[0])
-    # plt.show(block=False)
-    # plt.figure()
-    # imshow(y[0,...,0])
-    # plt.show(block=False)
+        train_generator = create_train_image_generator(X_train, y_train, supervision=supervision)
+        # x,y = next(train_generator)
+        # plt.figure()
+        # imshow(x[0])
+        # plt.show(block=False)
+        # plt.figure()
+        # imshow(y[0,...,0])
+        # plt.show(block=False)
 
-    model = train_model(train_generator)
-    model = load_model('weights/my_unet++supervision_cv{}'.format(CV) + '.h5', compile=False)
+        model = train_model(train_generator)
 
-    evaluate(model, X_val, y_val)
+        model = load_model('weights/my_unet++supervision_cv{}'.format(CV) + '.h5', compile=False)
 
-    test_image_array, predicted_mask, test_image_names = make_predict(model)
-    predicts = dict(zip(test_image_names, predicted_mask))
-    np.save('cross_val_predicts/predicted_mask_cv_{}'.format(CV), predicts)
-    create_submission(test_image_names, predicted_mask.copy(), threshold=0.5)
+        evaluate(model, X_val, y_val)
 
+        test_image_array, predicted_mask, test_image_names = make_predict(model)
+        predicts = dict(zip(test_image_names, predicted_mask))
+        np.save('cross_val_predicts/predicted_mask_cv_{}'.format(CV), predicts)
+        create_submission(test_image_names, predicted_mask.copy(), threshold=0.5)
 
+    else:
+        stack_prediction()
 
     # plt.figure()
     # imshow(test_image_array[0])
@@ -289,5 +313,7 @@ Evaluate Dice coefficient CV 0: Best_score = 0.9589819573059134 Best_threshold =
 Evaluate Dice coefficient CV 1: Best_score = 0.955407403962216 Best_threshold = 0.6499999999999999  LB = 0,954470 (0.5)
 Evaluate Dice coefficient CV 2: Best_score = 0.9536193533506331 Best_threshold = 0.5499999999999999 LB = 0,956182 (0.5)
 Evaluate Dice coefficient CV 3: Best_score = 0.9529933907900953 Best_threshold = 0.5999999999999999 LB = 0,957851 (0.5)
-Evaluate Dice coefficient CV 4: Best_score = 0.9556511903047544 Best_threshold = 0.5499999999999999 LB = (0.5)
+Evaluate Dice coefficient CV 4: Best_score = 0.9556511903047544 Best_threshold = 0.5499999999999999 LB = 0,957374 (0.5)
+
+Stack = 0,958633 (0.59)
 """
